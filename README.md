@@ -64,3 +64,62 @@ Alternatively, most distributions such as Ubuntu, Fedora or Arch already package
 ## Building
 
 Check out the wiki and follow the instructions on how to build it on [Linux](https://github.com/Swordfish90/cool-retro-term/wiki/Build-Instructions-(Linux)) and [macOS](https://github.com/Swordfish90/cool-retro-term/wiki/Build-Instructions-(macOS)).
+
+Note that the current `qmltermwidget` submodule requires **Qt 6.5+**
+(it uses `QRegularExpression::matchView`). Distros that still ship Qt 6.4,
+namely Ubuntu 24.04, Debian 12 "Bookworm", and the Bookworm-based Raspberry Pi
+OS, will fail to build with a `matchView` error. Use Qt 6.5 or newer.
+
+### Building in Docker (no host Qt install)
+
+To compile without installing Qt on the host, use the provided toolchain image:
+
+```bash
+docker/build.sh          # builds the Qt6 image on first run, then compiles
+```
+
+The result lands in `build-docker/cool-retro-term`. The image is based on
+Ubuntu 25.04 (Qt 6.8). See [`docker/Dockerfile`](docker/Dockerfile).
+
+The container-built binary links against the container's Qt, so it will not run
+directly on a host without Qt. On **WSL2 (WSLg)** you can run it straight from
+the container; the display and GPU are forwarded automatically:
+
+```bash
+docker/run.sh --control-port 9000
+```
+
+`docker/run.sh` uses `--network host`, so the control server is reachable from
+host-side scripts at `127.0.0.1:9000`. Set `LIBGL_ALWAYS_SOFTWARE=1` to fall
+back to software rendering if GPU passthrough misbehaves.
+
+### Running on a Raspberry Pi (native, no Docker)
+
+For a Pi, build natively; Docker is unnecessary overhead there. The catch is
+the Qt version: **Raspberry Pi OS Bookworm ships Qt 6.4.2, which is too old**
+(same `matchView` failure). Use the **Trixie-based Raspberry Pi OS (Debian 13,
+2025), which ships Qt 6.8.2**, on a 64-bit (arm64) image:
+
+```bash
+sudo apt update
+sudo apt install git build-essential qmake6 qt6-base-dev qt6-base-dev-tools \
+    qt6-declarative-dev qt6-declarative-dev-tools qt6-shader-baker \
+    qml6-module-qt5compat-graphicaleffects libqt6sql6-sqlite
+
+git clone --recursive <your-fork-url>
+cd cool-retro-term
+mkdir build && cd build && qmake6 .. && make -j"$(nproc)"
+./app/cool-retro-term --control-port 9000
+```
+
+Notes:
+
+- On Debian the shader baker `qsb` comes from the `qt6-shader-baker` package
+  (installed to `/usr/lib/qt6/bin/qsb`, which qmake's `QT_HOST_BINS` resolves
+  to), not from `qt6-shadertools`.
+- `qml6-module-qt5compat-graphicaleffects` and `libqt6sql6-sqlite` are the two
+  runtime pieces most easily missed: without the first the UI fails to load
+  (`module "Qt5Compat.GraphicalEffects" is not installed`), without the second
+  settings can't be saved (`QSQLITE driver not loaded`).
+- The distro/snap-store `cool-retro-term` is upstream's Qt5 build (v1.1.1), so
+  it will **not** contain this fork's control server, so build from source.
