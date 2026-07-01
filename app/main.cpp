@@ -18,6 +18,7 @@
 
 #include <QLoggingCategory>
 
+#include <controlserver.h>
 #include <fileio.h>
 #include <fontlistmodel.h>
 #include <fontmanager.h>
@@ -70,6 +71,7 @@ int main(int argc, char *argv[])
         cout << "  -e <cmd>            Command to execute. This option will catch all following arguments, so use it as the last option." << Qt::endl;
         cout << "  --fullscreen        Run cool-retro-term in fullscreen." << Qt::endl;
         cout << "  -p|--profile <prof> Run cool-retro-term with the given profile." << Qt::endl;
+        cout << "  --control-port <p>  Enable the runtime control server on 127.0.0.1:<p>." << Qt::endl;
         cout << "  -h|--help           Print this help." << Qt::endl;
         cout << "  --verbose           Print additional information such as profiles and settings." << Qt::endl;
         return 0;
@@ -129,6 +131,21 @@ int main(int argc, char *argv[])
 
     engine.rootContext()->setContextProperty("workdir", getNamedArgument(args, "--workdir", QDir::currentPath()));
     engine.rootContext()->setContextProperty("fileIO", &fileIO);
+
+    // Optional runtime control server (e.g. to drive effects from a script).
+    // Disabled unless --control-port is given; binds to loopback only.
+    ControlServer controlServer;
+    engine.rootContext()->setContextProperty("controlServer", &controlServer);
+
+    QString controlPortArg = getNamedArgument(args, "--control-port");
+    if (!controlPortArg.isEmpty()) {
+        bool ok = false;
+        quint16 port = controlPortArg.toUShort(&ok);
+        if (ok && controlServer.listen(port))
+            qInfo() << "Control server listening on 127.0.0.1 port" << port;
+        else
+            qWarning() << "Failed to start control server on port" << controlPortArg;
+    }
 
     // Manage import paths for Linux and OSX.
     QStringList importPathList = engine.importPathList();

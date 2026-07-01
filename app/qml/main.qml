@@ -46,6 +46,92 @@ QtObject {
 
     property ListModel windowsModel: ListModel { }
 
+    // Whitelist of runtime-controllable parameters (all normalized 0.0..1.0),
+    // mapping a friendly protocol name to the backing settings property.
+    readonly property var controllableParams: ({
+        "contrast": "contrast",
+        "brightness": "brightness",
+        "ambientLight": "ambientLight",
+        "opacity": "windowOpacity",
+        "staticNoise": "staticNoise",
+        "screenCurvature": "screenCurvature",
+        "glowingLine": "glowingLine",
+        "burnIn": "burnIn",
+        "bloom": "bloom",
+        "chromaColor": "chromaColor",
+        "saturationColor": "saturationColor",
+        "jitter": "jitter",
+        "horizontalSync": "horizontalSync",
+        "flickering": "flickering",
+        "rgbShift": "rgbShift",
+        "frameGloss": "_frameShininess",
+        "frameSize": "_frameSize",
+        "screenRadius": "_screenRadius",
+        "margin": "_margin"
+    })
+
+    // Handles commands from the optional --control-port TCP server. Protocol
+    // (newline-terminated):
+    //   set <param> <0..1>   apply live (not persisted until "save")
+    //   get <param>          read current value
+    //   list                 list controllable parameters
+    //   save                 persist the current live state to the profile
+    //   reload               reload the saved profile, discarding live changes
+    property Connections controlConnection: Connections {
+        target: controlServer
+        function onCommandReceived(line) {
+            var parts = line.split(/\s+/)
+            var cmd = parts[0]
+            var params = appRoot.controllableParams
+
+            if (cmd === "list") {
+                controlServer.reply(Object.keys(params).join(" "))
+                return
+            }
+
+            if (cmd === "get") {
+                var gprop = params[parts[1]]
+                if (gprop === undefined) {
+                    controlServer.reply("error unknown param " + parts[1])
+                    return
+                }
+                controlServer.reply(parts[1] + " " + appSettings[gprop])
+                return
+            }
+
+            if (cmd === "set") {
+                var sprop = params[parts[1]]
+                if (sprop === undefined) {
+                    controlServer.reply("error unknown param " + parts[1])
+                    return
+                }
+                var value = parseFloat(parts[2])
+                if (isNaN(value)) {
+                    controlServer.reply("error invalid value " + parts[2])
+                    return
+                }
+                value = Math.max(0.0, Math.min(1.0, value))
+                appSettings[sprop] = value
+                controlServer.reply("ok " + parts[1] + " " + value)
+                return
+            }
+
+            if (cmd === "save") {
+                appSettings.storeSettings()
+                controlServer.reply("ok save")
+                return
+            }
+
+            if (cmd === "reload") {
+                appSettings.loadSettings()
+                controlServer.reply("ok reload")
+                return
+            }
+
+            controlServer.reply("error unknown command " + cmd)
+        }
+    }
+
     function createWindow() {
         var window = windowComponent.createObject(null)
         if (!window)

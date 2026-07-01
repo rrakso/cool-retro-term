@@ -1,4 +1,4 @@
-QT += qml quick widgets sql quickcontrols2
+QT += qml quick widgets sql quickcontrols2 network
 TARGET = cool-retro-term
 APP_VERSION = $$system(git -C $$PWD/.. describe --tags --always --dirty=-dirty)
 isEmpty(APP_VERSION): APP_VERSION = "unknown"
@@ -18,11 +18,13 @@ DEFINES += KDSINGLEAPPLICATION_STATIC_BUILD
 DESTDIR = $$OUT_PWD/../
 
 HEADERS += \
+    controlserver.h \
     fileio.h \
     fontmanager.h \
     fontlistmodel.h
 
 SOURCES += main.cpp \
+    controlserver.cpp \
     fileio.cpp \
     fontmanager.cpp \
     fontlistmodel.cpp

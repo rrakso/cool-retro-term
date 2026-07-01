@@ -14,6 +14,42 @@ This terminal emulator works under Linux and macOS and requires Qt6.
 
 Settings such as colors, fonts, and effects can be accessed via context menu.
 
+## Realtime control (scripting)
+
+cool-retro-term can expose a small TCP control server to tweak render
+parameters live from an external script. It is **disabled by default** and
+**binds to `127.0.0.1` only**. Enable it with a port:
+
+```text
+cool-retro-term --control-port 9000
+```
+
+The protocol is newline-terminated plain text (values normalized `0.0` to `1.0`):
+
+```text
+set <param> <value>    # apply live, e.g. set burnIn 0.6
+get <param>            # returns the current value
+list                   # lists controllable parameters
+save                   # persist the current live state to the profile
+reload                 # reload the saved profile, discarding live changes
+```
+
+Controllable parameters include: `contrast`, `brightness`, `ambientLight`,
+`opacity`, `staticNoise`, `screenCurvature`, `glowingLine`, `burnIn`, `bloom`,
+`chromaColor`, `saturationColor`, `jitter`, `horizontalSync`, `flickering`,
+`rgbShift`, `frameGloss`, `frameSize`, `screenRadius`, `margin`.
+
+`set` changes apply instantly but are lost on restart; run `save` to persist
+the current state to the profile, exactly like the settings menu does. A
+ready-to-use Python client (standard library only) lives in
+[`scripts/crt_control.py`](scripts/crt_control.py):
+
+```bash
+python3 scripts/crt_control.py set burnIn 0.6
+python3 scripts/crt_control.py save
+python3 scripts/crt_control.py list
+```
+
 ## Screenshots
 ![Image](<https://i.imgur.com/TNumkDn.png>)
 ![Image](<https://i.imgur.com/hfjWOM4.png>)
